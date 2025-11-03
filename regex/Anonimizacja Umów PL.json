@@ -1,0 +1,149 @@
+{
+  "name": "Anonimizacja Umów PL",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "=Umowa_PDF",
+        "options": {
+          "joinPages": true
+        }
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        736,
+        128
+      ],
+      "id": "9144b926-fc7d-485c-897b-2aa6cc12513e",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "formTitle": "Anonimizacja danych",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Umowa-PDF",
+              "fieldType": "file"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.3,
+      "position": [
+        512,
+        128
+      ],
+      "id": "dfe6dcf0-5df6-40b0-9782-34d3744881ab",
+      "name": "On form submission",
+      "webhookId": "331daaa2-2cd7-4813-af56-d2d40cf3de13"
+    },
+    {
+      "parameters": {
+        "operation": "completion",
+        "respondWith": "returnBinary",
+        "completionTitle": "✅ Anonimizacja Zakończona!",
+        "options": {
+          "customCss": ".container { max-width: 800px; margin: 0 auto; }\nh2 { color: #10b981; }\nh3 { color: #6366f1; margin-top: 20px; }\nul { list-style: none; padding: 0; }\nli { background: #f3f4f6; padding: 8px 12px; margin: 5px 0; border-radius: 6px; }"
+        }
+      },
+      "id": "37e6b19d-1aa4-4fe4-9c76-8fbef17b8391",
+      "name": "Display Report Form",
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 2.3,
+      "position": [
+        1504,
+        128
+      ],
+      "webhookId": "bca3d967-0b16-4125-8161-973ffca0499e"
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "import json\nimport base64\nimport zipfile\nimport io\nfrom datetime import datetime\n\n# Pobierz dane z Presidio\ntry:\n    if hasattr(_json, 'to_py'):\n        data = _json.to_py()\n    else:\n        data = dict(_json) if _json else {}\nexcept:\n    data = {}\n\n# Wyciągnij kluczowe informacje\nstatus = data.get('status', 'unknown')\ncontract_id = data.get('contract_id', 'unknown')\nentities_detected = data.get('entities_detected', 0)\nentity_breakdown = data.get('entity_breakdown', {})\nentities = data.get('entities', [])\noriginal_text = data.get('original_text', '')\nanonymized_text = data.get('anonymized_text', '')\nprocessed_at = data.get('processed_at', datetime.now().isoformat())\nmethod = data.get('anonymization_method', 'presidio-like-regex')\n\ntimestamp = datetime.now().strftime('%Y%m%d_%H%M%S')\n\n# ============================================\n# PLIK 1: CZYSTY TEKST DLA LLM (TXT)\n# ============================================\n\nplain_text = anonymized_text\nplain_filename = f'umowa_dla_llm_{timestamp}.txt'\n\n# ============================================\n# PLIK 2: MARKDOWN Z METADANYMI (MD)\n# ============================================\n\nmd_lines = []\nmd_lines.append('---')\nmd_lines.append('document_type: contract')\nmd_lines.append('anonymization_status: completed')\nmd_lines.append(f'contract_id: {contract_id}')\nmd_lines.append(f'processed_at: {processed_at}')\nmd_lines.append(f'anonymization_method: {method}')\nmd_lines.append(f'entities_detected: {entities_detected}')\nmd_lines.append('entity_breakdown:')\nfor entity_type, count in entity_breakdown.items():\n    md_lines.append(f'  {entity_type}: {count}')\nmd_lines.append('---')\nmd_lines.append('')\nmd_lines.append('# Zanonimizowana Umowa')\nmd_lines.append('')\nmd_lines.append(f'**Data anonimizacji:** {datetime.now().strftime(\"%Y-%m-%d %H:%M:%S\")}')\nmd_lines.append(f'**ID umowy:** {contract_id}')\nmd_lines.append(f'**Wykrytych encji:** {entities_detected}')\nmd_lines.append('')\nmd_lines.append('---')\nmd_lines.append('')\nmd_lines.append('## Treść Dokumentu')\nmd_lines.append('')\nmd_lines.append(anonymized_text)\nmd_lines.append('')\nmd_lines.append('---')\nmd_lines.append('')\nmd_lines.append('## Podsumowanie Anonimizacji')\nmd_lines.append('')\nmd_lines.append('Następujące typy danych zostały zanonimizowane:')\nfor entity_type, count in sorted(entity_breakdown.items(), key=lambda x: x[1], reverse=True):\n    md_lines.append(f'- **{entity_type}**: {count} wystąpień')\n\nmd_content = '\\n'.join(md_lines)\nmd_filename = f'umowa_structured_{timestamp}.md'\n\n# ============================================\n# PLIK 3: JSON DLA ZAAWANSOWANYCH ANALIZ\n# ============================================\n\njson_data = {\n    'document': {\n        'type': 'contract',\n        'id': contract_id,\n        'anonymization_date': datetime.now().isoformat(),\n        'method': method,\n        'status': status\n    },\n    'metadata': {\n        'entities_detected': entities_detected,\n        'entity_breakdown': entity_breakdown,\n        'original_length': len(original_text),\n        'anonymized_length': len(anonymized_text),\n        'compression_ratio': round(len(anonymized_text) / len(original_text) * 100, 2) if len(original_text) > 0 else 0\n    },\n    'content': {\n        'raw_text': anonymized_text,\n        'format': 'plain_text'\n    },\n    'entities': [\n        {\n            'type': e.get('type'),\n            'position': f\"{e.get('start')}-{e.get('end')}\",\n            'confidence': e.get('confidence', 'medium')\n        } for e in entities[:50]\n    ],\n    'llm_instructions': {\n        'recommended_tasks': [\n            'legal_compliance_check',\n            'contract_summary',\n            'risk_assessment',\n            'clause_extraction'\n        ],\n        'context': 'This is a Polish contract that has been anonymized using regex-based detection. All personal data has been replaced with placeholders like [IMIĘ NAZWISKO], [PESEL], etc.',\n        'language': 'pl'\n    }\n}\n\njson_content = json.dumps(json_data, ensure_ascii=False, indent=2)\njson_filename = f'umowa_data_{timestamp}.json'\n\n# ============================================\n# PLIK 4: SZCZEGÓŁOWY RAPORT (MD)\n# ============================================\n\nreport_lines = []\nreport_lines.append('# 📋 Raport Anonimizacji Dokumentu')\nreport_lines.append(f'\\n**Data przetwarzania:** {datetime.now().strftime(\"%Y-%m-%d %H:%M:%S\")}')\nreport_lines.append(f'**ID umowy:** {contract_id}')\nreport_lines.append(f'**Status:** {status}')\nreport_lines.append('\\n---\\n')\n\nreport_lines.append('## 📊 Statystyki Anonimizacji\\n')\nreport_lines.append('| Metryka | Wartość |')\nreport_lines.append('|---------|---------|')\nreport_lines.append(f'| Łączna liczba wykrytych encji | **{entities_detected}** |')\nreport_lines.append(f'| Długość oryginalnego tekstu | {len(original_text)} znaków |')\nreport_lines.append(f'| Długość zanonimizowanego tekstu | {len(anonymized_text)} znaków |')\nreport_lines.append(f'| Współczynnik kompresji | {round(len(anonymized_text) / len(original_text) * 100, 2)}% |')\n\nif entity_breakdown:\n    report_lines.append('\\n### 🔍 Wykryte typy danych wrażliwych\\n')\n    report_lines.append('| Typ Danych | Liczba Wystąpień |')\n    report_lines.append('|------------|------------------|')\n    for entity_type, count in sorted(entity_breakdown.items(), key=lambda x: x[1], reverse=True):\n        emoji_map = {\n            'PESEL': '🆔', 'NIP': '💼', 'REGON': '🏢',\n            'TELEFON': '📞', 'EMAIL': '📧', 'OSOBA': '👤',\n            'NAZWISKO': '👤', 'ADRES': '🏠', 'KWOTA': '💰',\n            'DATA': '📅', 'KOD_POCZTOWY': '📮', 'DOWOD': '🪪',\n            'KONTO': '💳', 'KRS': '📌', 'FIRMA': '🏛️'\n        }\n        emoji = emoji_map.get(entity_type, '📌')\n        report_lines.append(f'| {emoji} {entity_type} | {count} |')\n\nif entities:\n    report_lines.append('\\n## 📝 Szczegółowa Lista Zmian\\n')\n    report_lines.append(f'Wykryto **{len(entities)}** elementów do anonimizacji:\\n')\n    \n    by_type = {}\n    for entity in entities:\n        entity_type = entity.get('type', 'UNKNOWN')\n        if entity_type not in by_type:\n            by_type[entity_type] = []\n        by_type[entity_type].append(entity)\n    \n    for entity_type, items in by_type.items():\n        emoji_map = {\n            'PESEL': '🆔', 'NIP': '💼', 'REGON': '🏢',\n            'TELEFON': '📞', 'EMAIL': '📧', 'OSOBA': '👤',\n            'NAZWISKO': '👤', 'ADRES': '🏠', 'KWOTA': '💰',\n            'DATA': '📅', 'KOD_POCZTOWY': '📮', 'DOWOD': '🪪',\n            'KONTO': '💳', 'KRS': '📌', 'FIRMA': '🏛️'\n        }\n        emoji = emoji_map.get(entity_type, '📌')\n        report_lines.append(f'\\n### {emoji} {entity_type} ({len(items)})\\n')\n        \n        for idx, item in enumerate(items[:10], 1):\n            original = item.get('text', '')[:50]\n            confidence = item.get('confidence', 'medium')\n            position = f\"{item.get('start', 0)}-{item.get('end', 0)}\"\n            \n            report_lines.append(f'{idx}. **Oryginalny tekst:** `{original}`')\n            report_lines.append(f'   - Pozycja: {position}')\n            report_lines.append(f'   - Pewność: {confidence}')\n            report_lines.append('')\n        \n        if len(items) > 10:\n            report_lines.append(f'*... i {len(items) - 10} więcej*\\n')\n\nreport_lines.append('\\n---')\nreport_lines.append('\\n## 🤖 Przygotowanie dla LLM\\n')\nreport_lines.append('Dokument został przygotowany w 3 formatach:')\nreport_lines.append('\\n1. **TXT** - Czysty tekst, gotowy do bezpośredniego użycia w promptach')\nreport_lines.append('2. **Markdown** - Ze strukturalnymi metadanymi (YAML frontmatter)')\nreport_lines.append('3. **JSON** - Pełna struktura z metadanymi i instrukcjami dla LLM')\nreport_lines.append('\\n### Przykładowy prompt dla LLM:')\nreport_lines.append('```')\nreport_lines.append('Przeanalizuj poniższą zanonimizowaną umowę i:')\nreport_lines.append('1. Zidentyfikuj typ umowy')\nreport_lines.append('2. Wyciągnij kluczowe klauzule')\nreport_lines.append('3. Oceń ryzyko prawne')\nreport_lines.append('4. Zasugeruj poprawki')\nreport_lines.append('```')\nreport_lines.append('\\n---')\nreport_lines.append('\\n## 🔧 Metoda Anonimizacji\\n')\nreport_lines.append('**Użyta metoda:** Regex-based Anonymizer z zaawansowanym wykrywaniem polskich danych')\nreport_lines.append('\\n**Zastosowane techniki:**')\nreport_lines.append('- Wykrywanie numerów identyfikacyjnych (PESEL, NIP, REGON)')\nreport_lines.append('- Rozpoznawanie polskich imion i nazwisk')\nreport_lines.append('- Identyfikacja adresów i kodów pocztowych')\nreport_lines.append('- Wykrywanie danych kontaktowych (telefon, email)')\nreport_lines.append('- Anonimizacja kwot i dat')\nreport_lines.append('\\n---')\nreport_lines.append('\\n*Raport wygenerowany automatycznie przez Regex Anonimizer*')\n\nreport_content = '\\n'.join(report_lines)\nreport_filename = f'raport_pelny_{timestamp}.md'\n\n# ============================================\n# PLIK 5: PROMPT TEMPLATE DLA LLM\n# ============================================\n\nprompt_template = f'''# Prompt Template dla LLM\n\n## Kontekst\nPoniżej znajduje się polska umowa, która została zanonimizowana. Wszystkie dane osobowe zostały zastąpione placeholderami:\n- [IMIĘ NAZWISKO] - dane personalne\n- [PESEL] - numer PESEL\n- [EMAIL] - adres email\n- [TELEFON] - numer telefonu\n- [ADRES] - adres zamieszkania\n- [NIP] - numer NIP\n- [REGON] - numer REGON\n- [KONTO BANKOWE] - numer konta\n\n## Statystyki dokumentu\n- Wykrytych encji: {entities_detected}\n- Długość: {len(anonymized_text)} znaków\n- Typy danych: {', '.join(entity_breakdown.keys())}\n\n## Treść umowy\n\n```\n{anonymized_text}\n```\n\n## Zadania do wykonania\n\n1. **Analiza typu umowy**: Określ, jaki to typ umowy (o pracę, zlecenie, dzieło, itp.)\n\n2. **Ekstrakcja kluczowych klauzul**: Wyciągnij najważniejsze postanowienia umowy\n\n3. **Ocena ryzyka prawnego**: Zidentyfikuj potencjalne problemy prawne lub niejednoznaczności\n\n4. **Sugestie poprawek**: Zaproponuj ulepszenia treści umowy\n\n5. **Podsumowanie**: Krótkie streszczenie umowy (2-3 zdania)\n\n## Format odpowiedzi\n\nOdpowiedz w formacie JSON:\n```json\n{{\n  \"typ_umowy\": \"...\",\n  \"kluczowe_klauzule\": [...],\n  \"ryzyka\": [...],\n  \"sugestie\": [...],\n  \"podsumowanie\": \"...\"\n}}\n```\n'''\n\nprompt_filename = f'prompt_template_{timestamp}.md'\n\n# ============================================\n# UTWORZENIE ARCHIWUM ZIP\n# ============================================\n\nzip_buffer = io.BytesIO()\nwith zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:\n    # Pliki główne dla LLM\n    zip_file.writestr(plain_filename, plain_text)\n    zip_file.writestr(md_filename, md_content)\n    zip_file.writestr(json_filename, json_content)\n    zip_file.writestr(prompt_filename, prompt_template)\n    # Raport szczegółowy\n    zip_file.writestr(report_filename, report_content)\n\nzip_buffer.seek(0)\nzip_bytes = zip_buffer.read()\nzip_base64 = base64.b64encode(zip_bytes).decode('utf-8')\nzip_filename = f'anonimizacja_llm_ready_{timestamp}.zip'\n\n# ============================================\n# WYNIK\n# ============================================\n\nresult = {\n    'json': {\n        'status': 'completed',\n        'processed_at': datetime.now().isoformat(),\n        'contract_id': contract_id,\n        'statistics': {\n            'total_entities': entities_detected,\n            'entity_breakdown': entity_breakdown,\n            'original_length': len(original_text),\n            'anonymized_length': len(anonymized_text)\n        },\n        'llm_files': {\n            'plain_text': plain_filename,\n            'markdown': md_filename,\n            'json': json_filename,\n            'prompt_template': prompt_filename,\n            'report': report_filename\n        },\n        'zip_filename': zip_filename,\n        'zip_size': len(zip_bytes)\n    },\n    'binary': {\n        'data': {\n            'data': zip_base64,\n            'mimeType': 'application/zip',\n            'fileName': zip_filename\n        }\n    }\n}\n\nreturn [result]"
+      },
+      "id": "33b45e2e-3cad-4496-9e78-c545e8395351",
+      "name": "Generate LLM-Ready Files",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1232,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "import json\nimport re\nfrom datetime import datetime\n\ntry:\n    if hasattr(_json, 'to_py'):\n        data = _json.to_py()\n    else:\n        data = dict(_json) if _json else {}\nexcept:\n    data = {}\n\ncontract_text = \"\"\ncontract_id = \"unknown\"\nfor key in [\"text\", \"data\", \"content\", \"extracted_text\", \"body\"]:\n    if key in data and data[key]:\n        contract_text = str(data[key])\n        break\n\nif not contract_text or len(contract_text) < 10:\n    return [{'json': {'status': 'error', 'error': 'Brak tekstu'}}]\n\n# Rozszerzona lista polskich imion (wielkie i małe litery)\nPOLISH_FIRST_NAMES = {\n    'jan','piotr','paweł','krzysztof','andrzej','tomasz','marek','michał','stanisław','zbigniew','janusz','wojciech',\n    'adam','jacek','grzegorz','dariusz','mariusz','łukasz','robert','marcin','rafał','mateusz','kamil','dawid',\n    'maciej','sebastian','bartosz','jakub','artur','krzysztof','tadeusz','józef','henryk','jerzy','wiesław','leszek',\n    'anna','maria','katarzyna','małgorzata','agnieszka','barbara','ewa','magdalena','joanna','aleksandra','monika',\n    'beata','dorota','justyna','paulina','natalia','karolina','alicja','martyna','weronika','zofia','julia','izabela',\n    'elżbieta','danuta','teresa','grażyna','halina','ewelina','patrycja','sylwia','iwona','renata','edyta','magdalena',\n    'jolanta','daniela','marta','agnieszka','marlena','dominika','klaudia','marzena','ewelina','patrycja','sylwia'\n}\n\nPOLISH_SURNAME_ENDINGS = (\n    'ski','cki','dzki','wski','owski','ewski','ska','cka','dzka','wska','owska','ewska',\n    'ak','ek','ik','yk','czak','czyk','iak','owicz','ewicz','iewicz','uk','iuk','czuk',\n    'ny','ny','icz','ycz','arz','arz','ak','ek','ik','yk','ka','ka','owa','ewa'\n)\n\nEXCLUDE = {\n    'umowa','strony','zlecający','wykonawca','pracodawca','pracownik','wynajmujący','najemca',\n    'firma','spółka','prezes','zarząd','kontakt','sp','sa','ltd','szanowni','państwo',\n    'niniejszym','dotyczy','poważaniem','dokument','strona','warszawa','kraków','wrocław',\n    'poznań','gdańsk','katowice','łódź','lublin','białystok','szczecin','bydgoszcz',\n    'licencji','oprogramowania','specyfikacja','załącznik','opis','nazwa','zakres','umowy'\n}\n\ndef is_name(w):\n    w_lower = w.lower()\n    return w_lower in POLISH_FIRST_NAMES or (len(w) >= 3 and w_lower.endswith(('a', 'ia', 'ja', 'na', 'ra', 'la')))\n\ndef is_surname(w):\n    if len(w) < 3:\n        return False\n    w_lower = w.lower()\n    # Sprawdź typowe końcówki polskich nazwisk\n    return any(w_lower.endswith(e) for e in POLISH_SURNAME_ENDINGS) or (\n        len(w) >= 4 and w_lower[-1] in ('a', 'i', 'y', 'k', 'r', 'n') and w[0].isupper()\n    )\n\ndef is_all_caps(text):\n    \"\"\"Sprawdza czy tekst składa się tylko z wielkich liter\"\"\"\n    return text.isupper() and text.isalpha() and len(text) >= 3\n\ndef is_proper_name_pattern(text):\n    \"\"\"Sprawdza czy tekst wygląda na imię/nazwisko\"\"\"\n    if len(text) < 2:\n        return False\n    # Musi zaczynać się wielką literą i składać głównie z liter\n    if not (text[0].isupper() and text.isalpha()):\n        return False\n    # Nie może być zbyt długie (typowe imiona/nazwiska: 2-15 znaków)\n    if len(text) > 20:\n        return False\n    return True\n\ndetected = []\n\n# Identyfikatory - WAŻNA KOLEJNOŚĆ: bardziej specyficzne wzorce PRZED ogólnymi\nfor t,p in [\n    # Najpierw numery identyfikacyjne (11 cyfr - PESEL)\n    ('PESEL', r'\\b\\d{11}\\b'),\n    # NIP - różne formaty\n    ('NIP', r'\\bNIP[\\s:]*\\d{10}\\b'),\n    ('NIP', r'\\bNIP[\\s:]*\\d{3}[-\\s]?\\d{3}[-\\s]?\\d{2}[-\\s]?\\d{2}\\b'),\n    ('NIP', r'\\b\\d{3}[-\\s]?\\d{3}[-\\s]?\\d{2}[-\\s]?\\d{2}\\b'),\n    # KRS - 9 lub 10 cyfr\n    ('KRS', r'\\bKRS[\\s:]*\\d{9,10}\\b'),\n    ('KRS', r'\\bKRS[\\s:]*\\d{3,4}[.\\s]\\d{2,3}[.\\s]\\d{2,3}\\b'),\n    # REGON\n    ('REGON', r'\\bREGON[\\s:]*(\\d{9}|\\d{14})\\b'),\n    # Konto bankowe\n    ('KONTO', r'\\bPL\\s?\\d{2}[\\s\\d]{24,28}\\b'),\n    # Numer klienta\n    ('NUMER_KLIENTA', r'\\b(?:Nr\\s+klienta|ID\\s+klienta|numer[\\s]+rezerwacji)[\\s:]*([\\d]{6,10})\\b'),\n    # Email\n    ('EMAIL', r'\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b'),\n    # Telefon - PO PESEL, aby nie łapał 11-cyfrowych numerów\n    ('TELEFON', r'\\b(?:\\+48|0048|tel\\.?|telefon)[\\s:]*[\\d\\s-]{9,15}\\b'),\n    ('TELEFON', r'\\b\\+?48[\\s-]?\\d{2,3}[\\s-]?\\d{3}[\\s-]?\\d{2,3}[\\s-]?\\d{2,3}\\b'),\n    ('TELEFON', r'\\b\\d{2,3}[\\s-]\\d{3}[\\s-]?\\d{2,3}[\\s-]?\\d{2,3}\\b'),\n    # Dowód osobisty - format ABC123456 (3 litery + 6 cyfr)\n    ('DOWOD', r'\\b[A-Z]{3}\\d{6}\\b'),\n    # Numer polisy - format EU/2025/771234 (litery/rok/cyfry)\n    ('POLISA', r'\\b[A-Z]{2,3}/\\d{4}/\\d{4,8}\\b'),\n    # Nazwa firmy - różne formy prawne (prostsze wzorce)\n    ('FIRMA', r'[A-ZŁŚĆŹŻÓ][A-ZŁŚĆŹŻÓA-Za-ząćęłńóśźż\\s]+SP\\.\\s*Z\\s*O\\.\\s*O\\.'),\n    ('FIRMA', r'[A-ZŁŚĆŹŻÓ][A-ZŁŚĆŹŻÓA-Za-ząćęłńóśźż\\s]+S\\.\\s*A\\.'),\n    ('FIRMA', r'[A-ZŁŚĆŹŻÓ][A-ZŁŚĆŹŻÓA-Za-ząćęłńóśźż\\s]+SP\\.\\s*J\\.'),\n    ('FIRMA', r'[A-ZŁŚĆŹŻÓ][A-ZŁŚĆŹŻÓA-Za-ząćęłńóśźż\\s]+SP\\.\\s*K\\.'),\n    # Kod pocztowy\n    ('KOD_POCZTOWY', r'\\b\\d{2}-\\d{3}\\s+[A-ZŁŚĆŹŻÓ][a-ząćęłńóśźż]+\\b'),\n    # Kwota\n    ('KWOTA', r'\\b\\d{1,3}(?:[\\s.]\\d{3})*(?:,\\d{2})?\\s*(?:zł|PLN)\\b'),\n    ('KWOTA', r'\\b\\d{4,}\\s*zł\\b'),\n    # Data - format numeryczny\n    ('DATA', r'\\b\\d{1,2}[./-]\\d{1,2}[./-]\\d{2,4}\\b'),\n    # Data - format słowny polski (np. 15 października 2025 r.)\n    ('DATA', r'\\b\\d{1,2}\\s+(?:stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|września|października|listopada|grudnia)\\s+\\d{4}(?:\\s+r\\.?)?\\b'),\n    # Adres\n    ('ADRES', r'ul\\.\\s+[A-ZŁŚĆŹŻÓ][a-ząćęłńóśźż]+(?:\\s+[A-ZŁŚĆŹŻÓ][a-ząćęłńóśźż]+)*\\s+\\d+'),\n]:\n    for m in re.finditer(p, contract_text, re.I):\n        if m.lastindex:\n            detected.append({'type':t,'text':m.group(1),'start':m.start(1),'end':m.end(1),'confidence':'high'})\n        else:\n            detected.append({'type':t,'text':m.group(),'start':m.start(),'end':m.end(),'confidence':'high'})\n\n# Wzorzec 1: Imię Nazwisko (pierwsza litera wielka, reszta mała)\nfor m in re.finditer(r'\\b([A-ZŁŚĆŹŻÓ][a-ząćęłńóśźż]{2,})\\s+([A-ZŁŚĆŹŻÓ][a-ząćęłńóśźż]{2,})\\b', contract_text):\n    f, l = m.group(1), m.group(2)\n    f_lower, l_lower = f.lower(), l.lower()\n    if (is_name(f) or f_lower in POLISH_FIRST_NAMES) and is_surname(l) and f_lower not in EXCLUDE and l_lower not in EXCLUDE:\n        detected.append({'type':'OSOBA','text':f+' '+l,'start':m.start(),'end':m.end(),'confidence':'high'})\n\n# Wzorzec 2: IMIĘ NAZWISKO (oba wielkimi literami)\nfor m in re.finditer(r'\\b([A-ZŁŚĆŹŻÓ]{2,})\\s+([A-ZŁŚĆŹŻÓ]{2,})\\b', contract_text):\n    f, l = m.group(1), m.group(2)\n    f_lower, l_lower = f.lower(), l.lower()\n    if (is_name(f) or f_lower in POLISH_FIRST_NAMES or is_proper_name_pattern(f)) and \\\n       (is_surname(l) or is_all_caps(l)) and \\\n       f_lower not in EXCLUDE and l_lower not in EXCLUDE and \\\n       len(f) >= 2 and len(l) >= 3:\n        detected.append({'type':'OSOBA','text':f+' '+l,'start':m.start(),'end':m.end(),'confidence':'high'})\n\n# Wzorzec 3: Imię NAZWISKO (imię normalnie, nazwisko wielkimi)\nfor m in re.finditer(r'\\b([A-ZŁŚĆŹŻÓ][a-ząćęłńóśźż]{2,})\\s+([A-ZŁŚĆŹŻÓ]{2,})\\b', contract_text):\n    f, l = m.group(1), m.group(2)\n    f_lower, l_lower = f.lower(), l.lower()\n    if (is_name(f) or f_lower in POLISH_FIRST_NAMES) and \\\n       (is_all_caps(l) or is_surname(l)) and \\\n       f_lower not in EXCLUDE and l_lower not in EXCLUDE and \\\n       len(l) >= 3:\n        detected.append({'type':'OSOBA','text':f+' '+l,'start':m.start(),'end':m.end(),'confidence':'high'})\n\n# Wzorzec 4: Pojedyncze nazwiska (tylko jeśli wygląda na polskie nazwisko i jest w odpowiednim kontekście)\nfor m in re.finditer(r'\\b([A-ZŁŚĆŹŻÓ][a-ząćęłńóśźż]{3,}|[A-ZŁŚĆŹŻÓ]{3,})\\b', contract_text):\n    word = m.group(1)\n    word_lower = word.lower()\n    # Sprawdź czy to wygląda na nazwisko (nie imię i nie wykluczone słowo)\n    if word_lower not in EXCLUDE and word_lower not in POLISH_FIRST_NAMES:\n        if is_surname(word) or (is_all_caps(word) and len(word) >= 4):\n            # Sprawdź kontekst - czy jest przed/pod właściwym kontekstem (np. \"Strony:\", \"Pracownik:\")\n            context_before = contract_text[max(0, m.start()-30):m.start()].lower()\n            context_after = contract_text[m.end():min(len(contract_text), m.end()+30)].lower()\n            if any(marker in context_before or marker in context_after for marker in \n                   ['strony:', 'pracownik:', 'pracodawca:', 'zlecający:', 'wykonawca:', 'imię:', 'nazwisko:', 'osoba:', 'dane:']):\n                detected.append({'type':'OSOBA','text':word,'start':m.start(),'end':m.end(),'confidence':'medium'})\n\n# Sortuj i usuń nakładające się (zachowaj te z wyższą pewnością)\ndetected.sort(key=lambda x: (x['start'], -len(x['text']), x.get('confidence', 'low') == 'high'))\nfiltered = []\nlast_end = -1\nfor e in detected:\n    # Sprawdź czy się nie nakłada z poprzednim\n    if e['start'] >= last_end:\n        filtered.append(e)\n        last_end = e['end']\n    elif e.get('confidence') == 'high' and filtered and filtered[-1]['start'] < e['start'] < filtered[-1]['end']:\n        # Jeśli nowa detekcja ma wyższą pewność i nakłada się, zastąp poprzednią\n        if filtered[-1].get('confidence') != 'high':\n            filtered[-1] = e\n            last_end = max(last_end, e['end'])\n\n# Anonimizuj (od końca, aby zachować prawidłowe pozycje)\nrepl = {\n    'PESEL':'[PESEL]','NIP':'[NIP]','REGON':'[REGON]','KRS':'[KRS]','EMAIL':'[EMAIL]','TELEFON':'[TELEFON]',\n    'OSOBA':'[IMIĘ NAZWISKO]','ADRES':'[ADRES]','KWOTA':'[KWOTA]','DATA':'[DATA]',\n    'KOD_POCZTOWY':'[KOD POCZTOWY]','KONTO':'[KONTO BANKOWE]','NUMER_KLIENTA':'[NUMER KLIENTA]','DOWOD':'[DOWÓD OSOBISTY]','FIRMA':'[NAZWA FIRMY]','POLISA':'[NUMER POLISY]'\n}\n\nanon = contract_text\n# Sortuj od końca, aby pozycje się nie zmieniały\nfiltered_sorted = sorted(filtered, key=lambda x: x['start'], reverse=True)\n\nfor e in filtered_sorted:\n    replacement = repl.get(e['type'], f\"[{e['type']}]\")\n    start, end = e['start'], e['end']\n    anon = anon[:start] + replacement + anon[end:]\n\nstats = {}\nfor e in filtered:\n    stats[e['type']] = stats.get(e['type'], 0) + 1\n\nreturn [{'json':{\n    'status':'success',\n    'contract_id':contract_id,\n    'processed_at':datetime.now().isoformat(),\n    'entities_detected':len(filtered),\n    'entity_breakdown':stats,\n    'entities':filtered[:100],\n    'original_text':contract_text,\n    'anonymized_text':anon,\n    'anonymization_method':'presidio-v4-enhanced'\n}}]"
+      },
+      "id": "955a370e-551a-4c6a-b7d8-e9933d339abd",
+      "name": "Data anonymization",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        976,
+        128
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate LLM-Ready Files": {
+      "main": [
+        [
+          {
+            "node": "Display Report Form",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Data anonymization",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Data anonymization": {
+      "main": [
+        [
+          {
+            "node": "Generate LLM-Ready Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "a894666d-7b09-4d85-b1f2-2f1e49cd77c8",
+  "meta": {
+    "instanceId": "7d48bf159ed7090715da60fe9a66b20bba0f22a3634aaab424e34ac3ef2dd90a"
+  },
+  "id": "kp8MCtXbxpsncjB1",
+  "tags": []
+}
