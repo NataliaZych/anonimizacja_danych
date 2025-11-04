@@ -216,8 +216,9 @@ Użytkownik przesyła PDF
 
 3. **Przygotuj katalog workflows:**
    ```bash
-   mkdir workflows
-   cp "Anonimizacja Umów PL.json" workflows/
+   mkdir -p workflows
+   # Opcjonalnie: Skopiuj workflow do katalogu workflows (możesz też zaimportować go później przez interfejs n8n)
+   # cp "Anonimizacja Umów PL.json" workflows/
    ```
 
 4. **Uruchom rozwiązanie:**
@@ -227,7 +228,13 @@ Użytkownik przesyła PDF
 
 5. **Otwórz przeglądarkę:**
    - Wejdź na: http://localhost:5678
-   - Zaloguj się (domyślnie: admin / hasło z .env)
+   - **Przy pierwszym uruchomieniu:** Wypełnij formularz setup, aby utworzyć konto właściciela:
+     * Email: dowolny adres email (np. `admin@localhost`)
+     * First Name: np. `Admin`
+     * Last Name: np. `User`
+     * Password: minimum 8 znaków, 1 cyfra i 1 wielka litera (np. `Admin123!`)
+     * Kliknij "Next" aby utworzyć konto
+   - **Przy kolejnych uruchomieniach:** Zaloguj się używając utworzonego konta
    - Zaimportuj workflow z pliku `Anonimizacja Umów PL.json`
 
 6. **Użyj workflow:**

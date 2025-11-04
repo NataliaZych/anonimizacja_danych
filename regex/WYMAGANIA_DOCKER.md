@@ -98,9 +98,22 @@ To uruchomi rozwiązanie w tle. Możesz zamknąć terminal - aplikacja będzie d
 
 1. **Otwórz przeglądarkę internetową**
 2. **Wejdź na adres:** http://localhost:5678
-3. **Zaloguj się:**
-   - Użytkownik: `admin` (lub wartość z pliku `.env`)
-   - Hasło: hasło ustawione w pliku `.env`
+
+3. **Przy pierwszym uruchomieniu - Utwórz konto właściciela:**
+   - Zobaczysz formularz "Set up owner account"
+   - Wypełnij wymagane pola:
+     * **Email**: Dowolny adres email (np. `admin@localhost`)
+     * **First Name**: Twoje imię (np. `Admin`)
+     * **Last Name**: Twoje nazwisko (np. `User`)
+     * **Password**: Minimum 8 znaków, 1 cyfra i 1 wielka litera (np. `Admin123!`)
+   - Opcjonalnie: Odznacz checkbox "I want to receive security and product updates" jeśli nie chcesz otrzymywać aktualizacji
+   - Kliknij przycisk **"Next"** aby utworzyć konto
+   - Po utworzeniu konta zobaczysz główny interfejs n8n
+
+4. **Przy kolejnych uruchomieniach - Logowanie:**
+   - Zaloguj się używając utworzonego konta (email i hasło z formularza setup)
+
+**Uwaga:** Basic Auth (użytkownik `admin` / hasło z `.env`) działa dla API/webhooków, ale przy pierwszym uruchomieniu n8n wymaga utworzenia konta właściciela przez formularz setup. To jednorazowa operacja.
 
 Jeśli widzisz interfejs n8n, wszystko działa poprawnie!
 
