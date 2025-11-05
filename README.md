@@ -51,6 +51,12 @@ Rozwiązanie oparte na platformie **n8n** wykorzystujące zaawansowane wyrażeni
 - Przetwarzanie dokumentów o przewidywalnej strukturze
 - Ograniczenia budżetowe
 
+#### ⚠️ Ograniczenia i Ostrzeżenia:
+- **Rozwiązania mogą nie zawsze w pełni realizować cele anonimizacji danych** - systemy zostały przetestowane na różnych umowach, jednak inne, specyficzne umowy mogą zawierać dane wrażliwe, które nie zostaną wykryte
+- **Szczególnie dotyczy rozwiązania regex-based** - wyrażenia regularne działają na podstawie predefiniowanych wzorców i mogą nie rozpoznać wszystkich wariantów danych, nietypowych formatów lub danych zapisanych w niestandardowy sposób
+- **Zalecane jest ręczne sprawdzenie wyników** - zwłaszcza w przypadku dokumentów o nietypowej strukturze lub zawierających niestandardowe formaty danych
+- **Nie gwarantujemy 100% skuteczności** - zawsze sprawdź zanonimizowane dokumenty przed ich użyciem, szczególnie w kontekście zgodności z RODO
+
 **📖 Szczegółowa dokumentacja:** [regex/README.md](regex/README.md)
 
 ---
@@ -188,6 +194,7 @@ Po przetworzeniu dokumentu otrzymujesz archiwum ZIP z 5 plikami gotowymi do uży
 - ✅ Możliwość ustawienia uwierzytelniania w n8n
 - ✅ W środowisku produkcyjnym zalecane użycie HTTPS
 - ⚠️ **WAŻNE:** Zawsze zmień domyślne hasło w pliku `.env`
+- ⚠️ **WAŻNE:** Rozwiązania mogą nie zawsze w pełni realizować cele anonimizacji danych. Systemy zostały przetestowane na różnych umowach, jednak inne, specyficzne umowy mogą zawierać dane wrażliwe, które nie zostaną wykryte. Szczególnie dotyczy to rozwiązania regex-based. **Zawsze sprawdź ręcznie wyniki anonimizacji przed użyciem dokumentów.**
 
 ## 📚 Wspierane Formaty i Dokumenty
 

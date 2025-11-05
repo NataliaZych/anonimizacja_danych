@@ -208,11 +208,20 @@ Użytkownik przesyła PDF
 
 1. **Zainstaluj Docker** (zobacz [WYMAGANIA_DOCKER.md](WYMAGANIA_DOCKER.md))
 
-2. **Skonfiguruj zmienne środowiskowe:**
+2. **Skonfiguruj zmienne środowiskowe (opcjonalne, ale zalecane):**
+   
+   **Uwaga:** Plik `.env` nie jest wymagany, ponieważ `docker-compose.yml` ma wartości domyślne. Jednak dla bezpieczeństwa zalecane jest utworzenie pliku `.env` z silniejszym hasłem.
+   
+   Utwórz plik `.env` w katalogu z `docker-compose.yml`:
    ```bash
-   cp .env.example .env
-   # Edytuj .env i zmień hasło
+   # Utwórz plik .env i dodaj:
+   N8N_USER=admin
+   N8N_PASSWORD=TwojeBezpieczneHaslo123!
    ```
+   
+   Jeśli nie utworzysz pliku `.env`, zostaną użyte wartości domyślne:
+   - Użytkownik Basic Auth: `admin`
+   - Hasło Basic Auth: `admin123` ⚠️ **To hasło jest słabe - zmień je w środowisku produkcyjnym!**
 
 3. **Przygotuj katalog workflows:**
    ```bash
@@ -228,13 +237,33 @@ Użytkownik przesyła PDF
 
 5. **Otwórz przeglądarkę:**
    - Wejdź na: http://localhost:5678
-   - **Przy pierwszym uruchomieniu:** Wypełnij formularz setup, aby utworzyć konto właściciela:
-     * Email: dowolny adres email (np. `admin@localhost`)
-     * First Name: np. `Admin`
-     * Last Name: np. `User`
-     * Password: minimum 8 znaków, 1 cyfra i 1 wielka litera (np. `Admin123!`)
-     * Kliknij "Next" aby utworzyć konto
-   - **Przy kolejnych uruchomieniach:** Zaloguj się używając utworzonego konta
+   
+   **🔐 Uwaga o uwierzytelnianiu:**
+   - n8n używa **dwóch warstw** uwierzytelniania:
+     1. **Basic Auth (HTTP)** - używany do ochrony całego interfejsu
+        - Użytkownik: `admin` (lub wartość z `.env` / `N8N_USER`)
+        - Hasło: `admin123` (lub wartość z `.env` / `N8N_PASSWORD`)
+        - To jest pierwszy ekran, który zobaczysz
+   
+     2. **Konto właściciela n8n** - konto użytkownika w systemie n8n
+        - Tworzone przez formularz setup przy pierwszym uruchomieniu
+        - **To jest osobne konto** - nie to samo co Basic Auth!
+   
+   **Przy pierwszym uruchomieniu:**
+   1. Najpierw zobaczysz okno Basic Auth - wpisz:
+      - Użytkownik: `admin` (lub wartość z `.env`)
+      - Hasło: `admin123` (lub wartość z `.env`)
+   2. Następnie zobaczysz formularz "Set up owner account" - wypełnij:
+      * Email: dowolny adres email (np. `admin@localhost`)
+      * First Name: np. `Admin`
+      * Last Name: np. `User`
+      * Password: minimum 8 znaków, 1 cyfra i 1 wielka litera (np. `Admin123!`)
+      * Kliknij "Next" aby utworzyć konto
+   
+   **Przy kolejnych uruchomieniach:**
+   1. Najpierw Basic Auth: `admin` / hasło z `.env` (lub domyślne `admin123`)
+   2. Następnie logowanie do n8n: email i hasło z formularza setup
+   
    - Zaimportuj workflow z pliku `Anonimizacja Umów PL.json`
 
 6. **Użyj workflow:**
@@ -275,7 +304,7 @@ Szczegółowe informacje w [WYMAGANIA_DOCKER.md](WYMAGANIA_DOCKER.md)
 ```
 anonimizacja_danych/
 ├── docker-compose.yml          # Konfiguracja Docker
-├── .env.example                # Przykładowe zmienne środowiskowe
+├── .env                        # Zmienne środowiskowe (opcjonalne, utwórz ręcznie)
 ├── WYMAGANIA_DOCKER.md         # Szczegółowy przewodnik Docker
 ├── README.md                   # Ten plik
 ├── Anonimizacja Umów PL.json   # Workflow n8n
